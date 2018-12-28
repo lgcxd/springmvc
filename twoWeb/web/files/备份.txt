@@ -1,0 +1,188 @@
+SELECT *
+  FROM (SELECT A.*, ROWNUM RN
+          FROM (select COUNT(*) OVER() "totalCount",
+         to_char(l.stop_time, 'yyyy-MM-dd') "stopTime",
+         l.SET_WAY "setWay",
+         case
+         when l.NarchangeNumber is null then
+         l.MarchangeNumber
+         else
+         l.NarchangeNumber
+         end archangeNumber
+         from (select (sum(t.archange_number) -
+         (select sum(d.archange_number)
+         from T_CONTRACT_REPORT_FORM d
+         WHERE trunc(d.stop_time) =
+         trunc(t.stop_time - 1)
+         and d.SET_WAY = t.SET_WAY
+         group by d.stop_time, d.SET_WAY)) NarchangeNumber,
+         sum(t.archange_number) MarchangeNumber,
+         t.stop_time,
+         t.SET_WAY
+         from T_CONTRACT_REPORT_FORM t
+         WHERE t.STOP_TIME >= TO_DATE('2018-06-06', 'yyyy-MM-dd')
+                           AND t.STOP_TIME <= TO_DATE('2018-06-13', 'yyyy-MM-dd')
+         group by t.stop_time, t.SET_WAY
+         order by t.stop_time desc) l
+                        ) A
+         WHERE ROWNUM <= 10)
+ WHERE RN > 0;
+ 
+ 
+
+ select b.stop_time,b.dep_id,b.set_way,(b.archange_number-a.archange_number) archange_number ,d.dept_name from 
+(select t.stop_time,t.archange_number,t.dep_id,t.set_way
+  from T_CONTRACT_REPORT_FORM t
+ where t.STOP_TIME >= TO_DATE('2018-06-05', 'yyyy-MM-dd')
+   AND t.STOP_TIME <= TO_DATE('2018-06-11', 'yyyy-MM-dd'))a,
+   (select t.stop_time,t.archange_number,t.dep_id,t.set_way
+  from T_CONTRACT_REPORT_FORM t
+ where t.STOP_TIME >= TO_DATE('2018-06-06', 'yyyy-MM-dd')
+   AND t.STOP_TIME <= TO_DATE('2018-06-12', 'yyyy-MM-dd')) b,t_depts d
+   where a.dep_id=b.dep_id  and b.dep_id=d.dept_id
+   and a.set_way=b.set_way
+   and  b.stop_time-1=a.stop_time;
+   
+   
+ select b.stop_time,
+        b.set_way,
+        sum(b.archange_number - nvl(c.archange_number, 0)) archange_number
+   from (select t.stop_time, t.archange_number, t.dep_id, t.set_way
+           from T_CONTRACT_REPORT_FORM t
+          where t.STOP_TIME >= TO_DATE('2018-06-06', 'yyyy-MM-dd')
+            AND t.STOP_TIME <= TO_DATE('2018-06-13', 'yyyy-MM-dd')) b
+   left join (select t.stop_time, t.archange_number, t.dep_id, t.set_way
+                from T_CONTRACT_REPORT_FORM t
+               where t.STOP_TIME >= TO_DATE('2018-06-05', 'yyyy-MM-dd')
+                 AND t.STOP_TIME <= TO_DATE('2018-06-12', 'yyyy-MM-dd')) c
+     on c.set_way = b.set_way 
+    and c.set_way = b.set_way
+    and b.stop_time - 1 = c.stop_time
+  group by b.stop_time, b.set_way;
+   
+ 
+  select COUNT(*) OVER() "totalCount",b.stop_time "stopTime",
+        b.dep_id "depId",
+        sum(b.archange_number - nvl(c.archange_number,0)) archange_number
+        from (select t.stop_time, t.archange_number, t.dep_id, t.set_way
+        from T_CONTRACT_REPORT_FORM t
+        where to_char(t.STOP_TIME, 'YYYY/MM/DD') between '2018/06/06' and
+        '2018/06/13') b left join
+        (select t.stop_time, t.archange_number, t.dep_id, t.set_way
+        from T_CONTRACT_REPORT_FORM t
+        where to_char(t.STOP_TIME, 'YYYY/MM/DD') between '2018/06/05' and
+        '2018/06/12') c on
+        c.dep_id = b.dep_id 
+        and c.set_way = b.set_way
+        and b.stop_time - 1 = c.stop_time
+        left join t_depts d on d.dep_id = b.dep_id
+        group by b.stop_time, b.dep_id
+        order by b.stop_time desc
+
+
+
+
+select COUNT(*) OVER() "totalCount",b.stop_time "stopTime",b.dep_id "depId",
+        sum(b.archange_number - nvl(c.archange_number,0)) archange_number,td.dept_name
+        from 
+ (select t.stop_time, t.archange_number, t.dep_id, t.set_way
+      from T_CONTRACT_REPORT_FORM t
+  where to_char(t.STOP_TIME, 'YYYY/MM/DD') between '2018/06/06' and '2018/06/13') b 
+  left join
+  (select t.stop_time, t.archange_number, t.dep_id, t.set_way
+      from T_CONTRACT_REPORT_FORM t
+   where to_char(t.STOP_TIME, 'YYYY/MM/DD') between '2018/06/05' and '2018/06/12') c 
+   on (c.dep_id = b.dep_id 
+        and c.set_way = b.set_way
+        and b.stop_time - 1 = c.stop_time)  
+        
+   left join t_depts td on td.dept_id = b.dep_id 
+           
+        group by b.stop_time, b.dep_id,td.dept_name
+        order by b.stop_time desc
+
+
+select * from T_CONTRACT_REPORT_FORM t;
+
+select t.contract_id,
+       t.user_id,
+       a.user_id,
+       a.parent_id,
+       s.settlement_id,
+       s.sett_way,
+       t.archiving_time,
+       i.agreement_id,
+       i.store_id
+  from T_CONTRACT_INFO t
+  left join (select u.user_id, r.parent_id
+               from t_roles r, t_users u
+              where u.role_id = r.role_id) a
+    on a.user_id = t.user_id
+  left join T_SETTLEMENT_RULE s
+    on s.contract_id = t.contract_id
+  left join t_stores_extend_info i
+    on i.agreement_id = t.contract_id
+ where to_char(t.archiving_time, 'YYYYMMDD') between '20180501' and '20180612'
+   and a.parent_id = 100416
+   and s.sett_way = 1;
+   
+    select count(t.CONTRACT_ID)
+   from T_CONTRACT_INFO t
+   left join T_SETTLEMENT_RULE s
+     on t.CONTRACT_ID = s.CONTRACT_ID
+   left join t_users u
+     on t.USER_ID = u.USER_ID
+   left join t_roles r
+     on u.ROLE_ID = r.ROLE_ID
+  where to_char(t.archiving_time, 'YYYYMMDD') between '20180501' and '20180612'
+    and S.SETT_WAY = 1
+    and r.PARENT_ID = 100416;
+   
+ select count(t.CONTRACT_ID)
+   from T_CONTRACT_INFO t
+   left join T_SETTLEMENT_RULE s
+     on t.CONTRACT_ID = s.CONTRACT_ID
+   left join t_users u
+     on t.USER_ID = u.USER_ID
+   left join t_roles r
+     on u.ROLE_ID = r.ROLE_ID
+   left join t_stores_extend_info e
+     on t.CONTRACT_ID = e.agreement_id
+  where to_char(t.archiving_time, 'YYYYMMDD') between '20180501' and '20180612'
+  and to_char(e.create_time, 'YYYYMMDD') between '20180501' and '20180612'
+    and S.SETT_WAY = 1
+    and r.PARENT_ID = 100022
+    and e.agreement_id is not null;
+    
+    
+select count(distinct s.AGREEMENT_ID)
+        from T_STORES_INFO t
+        left join T_STORES_EXTEND_INFO s
+        on t.STORE_ID = s.STORE_ID
+        left join T_CONTRACT_INFO c
+        on s.AGREEMENT_ID = c.CONTRACT_ID
+        where BUSINESS_TYPE =  1
+        and REGION_ID = 100408
+       and to_char(t.create_time, 'YYYYMMDD') between '20180501' and '20180612'
+       and s.agreement_id is not null
+       and c.contract_id is not null;
+       
+       
+        select s.SETT_WAY "settWay", count(t.ARCHIVING_TIME) "numbers", r.PARENT_ID "parentId"
+        from T_CONTRACT_INFO t
+        left join T_SETTLEMENT_RULE s
+        on t.CONTRACT_ID = s.CONTRACT_ID
+        left join t_users u
+        on t.USER_ID = u.USER_ID
+        left join t_roles r
+        on u.ROLE_ID = r.ROLE_ID
+        where  to_char(t.archiving_time, 'YYYY/MM/DD') between '20180501' and '20180
+        group by s.SETT_WAY, r.PARENT_ID
+       
+       
+       
+    
+    
+    
+    
+    
